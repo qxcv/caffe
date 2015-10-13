@@ -13,7 +13,8 @@
 #include "caffe/test/test_caffe_main.hpp"
 #include "caffe/test/test_gradient_check_util.hpp"
 
-// This is identical to the EuclideanLossLayer tests.
+// This is almost identical to the EuclideanLossLayer, but it ignores a kink
+// around 0.
 
 namespace caffe {
 
@@ -86,7 +87,7 @@ TYPED_TEST(ManhattanLossLayerTest, TestGradient) {
   ManhattanLossLayer<Dtype> layer(layer_param);
   layer.SetUp(this->blob_bottom_vec_, this->blob_top_vec_);
   // Ignore kink in [0-0.01, 0+0.01]
-  GradientChecker<Dtype> checker(1e-2, 1e-2, 1701, 0, 0.01);
+  GradientChecker<Dtype> checker(1e-3, 1e-3, 1701, 0., 0.01);
   checker.CheckGradientExhaustive(&layer, this->blob_bottom_vec_,
       this->blob_top_vec_);
 }
