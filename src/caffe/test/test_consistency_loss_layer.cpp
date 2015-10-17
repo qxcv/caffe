@@ -106,8 +106,7 @@ TYPED_TEST(ConsistencyLossLayerTest, TestGradient) {
   layer_param.add_loss_weight(kLossWeight);
   ConsistencyLossLayer<Dtype> layer(layer_param);
   layer.SetUp(this->blob_bottom_vec_, this->blob_top_vec_);
-  // Ignore kink in [0-0.01, 0+0.01]
-  GradientChecker<Dtype> checker(0.01, 1e-3, 1701, 0., 0.01);
+  GradientChecker<Dtype> checker(0.01, 1e-3, 1701, 0., 0.02);
   // Last argument says to only check gradient w.r.t. first bottom
   checker.CheckGradientExhaustive(&layer, this->blob_bottom_vec_,
       this->blob_top_vec_, 0);
