@@ -577,6 +577,69 @@ class ManhattanLossLayer : public LossLayer<Dtype> {
 };
 
 /**
+ * @brief Computes consistency loss using the L1 norm @f$
+ *          E = \frac{1}{N} \sum\limits_{n=1}^N \left| \left| \hat{y}_n - y_n
+ *        \right| \right|_1 @f$ for real-valued regression tasks. XXX: docs
+ *
+ * @param bottom input Blob vector (length 2)
+ *   -# @f$ (N \times C \times H \times W) @f$
+ *      the predictions @f$ \hat{y} \in [-\infty, +\infty]@f$
+ *   -# @f$ (N \times C \times H \times W) @f$
+ *      the targets @f$ y \in [-\infty, +\infty]@f$
+ * @param top output Blob vector (length 1)
+ *   -# @f$ (1 \times 1 \times 1 \times 1) @f$
+ *      the computed Manhattan loss: @f$ E =
+ *          \frac{1}{n} \sum\limits_{n=1}^N \left| \left| \hat{y}_n - y_n
+ *        \right| \right|_1 @f$
+ *
+ *  This is good for ensuring that the output of a regressor network is
+ *  consistent with some input flow. The intent is that the network will learn
+ *  the relationship between flow and object positions in different frames.
+ */
+template <typename Dtype>
+class ConsistencyLossLayer : public LossLayer<Dtype> {
+ public:
+  explicit ConsistencyLossLayer(const LayerParameter& param)
+      : LossLayer<Dtype>(param), diff_() {}
+  virtual void Reshape(const vector<Blob<Dtype>*>& bottom,
+      const vector<Blob<Dtype>*>& top);
+
+  virtual inline const char* type() const { return "ConsistencyLoss"; }
+  /**
+   * Like EuclideanLossLayer, ConsistencyLossLayer can backpropagate to both
+   * inputs -- override to return true and always allow force_backward.
+   */
+  virtual inline bool AllowForceBackward(const int bottom_index) const {
+    return true;
+  }
+
+ protected:
+  /// @copydoc ConsistencyLossLayer
+  virtual void Forward_cpu(const vector<Blob<Dtype>*>& bottom,
+      const vector<Blob<Dtype>*>& top);
+  virtual void Forward_gpu(const vector<Blob<Dtype>*>& bottom,
+      const vector<Blob<Dtype>*>& top);
+
+  /**
+   * @brief Computes the consistency error gradient w.r.t. the inputs.
+   *
+   * Like EuclideanLossLayer, ConsistencyLossLayer \b can compute gradients with
+   * respect to the label inputs bottom[1] (but still only will if
+   * propagate_down[1] is set, due to being produced by learnable parameters or
+   * if force_backward is set). In fact, this layer is "commutative" -- the
+   * result is the same regardless of the order of the two bottoms.
+   *
+   * TODO: Docs
+   */
+  virtual void Backward_cpu(const vector<Blob<Dtype>*>& top,
+      const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
+  virtual void Backward_gpu(const vector<Blob<Dtype>*>& top,
+      const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom);
+
+  Blob<Dtype> diff_;
+};
+
+/**
  * @brief Computes the multinomial logistic loss for a one-of-many
  *        classification task, directly taking a predicted probability
  *        distribution as input.
