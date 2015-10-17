@@ -29,7 +29,7 @@ void ConsistencyLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom
     const vector<Blob<Dtype>*>& top) {
   // bottom[0] is the pose
   // bottom[1] is the flow
-  int num_joints = bottom[0]->channels() / 2;
+  int num_joints = bottom[0]->channels() / 4;
   int flow_max_x = bottom[1]->width() - 1;
   int flow_max_y = bottom[1]->height() - 1;
   Dtype loss = 0;
@@ -45,24 +45,29 @@ void ConsistencyLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom
               snd_y_idx = bottom[0]->offset(n, 4*j+3, h, w);
 
           // We'll use these (x, y) coords to look up flow, but we have to clamp
-          // them in [0, maximum flow coordinate in given dimension) so that we
-          // can actually look them up
-          Dtype fst_x = std::min(std::max(label_data[fst_x_idx], Dtype(0)), Dtype(flow_max_x)),
-                fst_y = std::min(std::max(label_data[fst_y_idx], Dtype(0)), Dtype(flow_max_y)),
-                snd_x = std::min(std::max(label_data[snd_x_idx], Dtype(0)), Dtype(flow_max_x)),
-                snd_y = std::min(std::max(label_data[snd_y_idx], Dtype(0)), Dtype(flow_max_y));
+          // them in [0, maximum flow coordinate in given dimension) if we want
+          // to look them up (hence the {fst,snd}_{x,y}_c values)
+          Dtype fst_x = label_data[fst_x_idx],
+                fst_y = label_data[fst_y_idx],
+                snd_x = label_data[snd_x_idx],
+                snd_y = label_data[snd_y_idx];
+
+          int fst_x_c = std::min(std::max(fst_x, Dtype(0)), Dtype(flow_max_x)),
+              fst_y_c = std::min(std::max(fst_y, Dtype(0)), Dtype(flow_max_y)),
+              snd_x_c = std::min(std::max(snd_x, Dtype(0)), Dtype(flow_max_x)),
+              snd_y_c = std::min(std::max(snd_y, Dtype(0)), Dtype(flow_max_y));
 
           // Get mean flow
-          Dtype mean_flow_x = 0.5 * bottom[1]->data_at(n, 0, (int)fst_y, (int)fst_x)
-                  + 0.5 * bottom[1]->data_at(n, 0, (int)snd_y, (int)snd_x),
-                mean_flow_y = 0.5 * bottom[1]->data_at(n, 1, (int)fst_y, (int)fst_x)
-                  + 0.5 * bottom[1]->data_at(n, 1, (int)snd_y, (int)snd_x),
-                x_diff = fst_x + mean_flow_x - snd_x,
+          Dtype mean_flow_x = 0.5 * bottom[1]->data_at(n, 0, fst_y_c, fst_x_c)
+                  + 0.5 * bottom[1]->data_at(n, 0, snd_y_c, snd_x_c),
+                mean_flow_y = 0.5 * bottom[1]->data_at(n, 1, fst_y_c, fst_x_c)
+                  + 0.5 * bottom[1]->data_at(n, 1, fst_y_c, snd_x_c);
+          Dtype x_diff = fst_x + mean_flow_x - snd_x,
                 y_diff = fst_y + mean_flow_y - snd_y;
 
           // Add in some loss
-          loss += abs(x_diff);
-          loss += abs(y_diff);
+          loss += fabs(x_diff);
+          loss += fabs(y_diff);
 
           // Update all four diffs (these just store the derivative)
           diff_data[fst_x_idx] = caffe_sign(x_diff);
