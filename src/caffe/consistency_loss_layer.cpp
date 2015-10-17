@@ -44,6 +44,9 @@ void ConsistencyLossLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom
               snd_x_idx = bottom[0]->offset(n, 4*j+2, h, w),
               snd_y_idx = bottom[0]->offset(n, 4*j+3, h, w);
 
+          // TODO: I should interpolate flow so that I don't get insane
+          // gradients at small step sizes.
+
           // We'll use these (x, y) coords to look up flow, but we have to clamp
           // them in [0, maximum flow coordinate in given dimension) if we want
           // to look them up (hence the {fst,snd}_{x,y}_c values)
